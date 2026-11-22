@@ -47,6 +47,7 @@ class KiraSpeechService(context: Context) {
         File(modelDir, MODEL_FILE).isFile &&
             File(modelDir, VOICES_FILE).isFile &&
             File(modelDir, TOKENS_FILE).isFile &&
+            File(modelDir, LEXICON_FILE).isFile &&
             File(modelDir, MODEL_FILE).length() > MIN_MODEL_BYTES
 
     @Synchronized
@@ -115,8 +116,17 @@ class KiraSpeechService(context: Context) {
             val stagedModel = File(staging, MODEL_FILE)
             val stagedVoices = File(staging, VOICES_FILE)
             val stagedTokens = File(staging, TOKENS_FILE)
+            val stagedLexicon = File(staging, LEXICON_FILE)
+            val lexiconRequest = Request.Builder().url(LEXICON_URL).header("User-Agent", "Kira-Android").build()
+            client.newCall(lexiconRequest).execute().use { response ->
+                if (!response.isSuccessful) throw IOException("دانلود واژه‌نامه Kitten ناموفق بود (HTTP ${response.code}).")
+                val body = response.body ?: throw IOException("واژه‌نامه Kitten خالی است.")
+                body.byteStream().use { input ->
+                    FileOutputStream(stagedLexicon).use { output -> input.copyTo(output) }
+                }
+            }
             if (!stagedModel.isFile || stagedModel.length() < MIN_MODEL_BYTES ||
-                !stagedVoices.isFile || !stagedTokens.isFile) {
+                !stagedVoices.isFile || !stagedTokens.isFile || !stagedLexicon.isFile || stagedLexicon.length() < 1000L) {
                 throw IOException("فایل‌های مدل Kitten ناقص هستند.")
             }
             modelDir.deleteRecursively()
@@ -152,7 +162,7 @@ class KiraSpeechService(context: Context) {
                         model = File(modelDir, MODEL_FILE).absolutePath,
                         voices = File(modelDir, VOICES_FILE).absolutePath,
                         tokens = File(modelDir, TOKENS_FILE).absolutePath,
-                        dataDir = File(modelDir, "espeak-ng-data").absolutePath
+                        lexicon = File(modelDir, LEXICON_FILE).absolutePath
                     ),
                     numThreads = 2,
                     debug = false,
@@ -246,7 +256,9 @@ class KiraSpeechService(context: Context) {
         const val MODEL_FILE = "model.fp16.onnx"
         const val VOICES_FILE = "voices.bin"
         const val TOKENS_FILE = "tokens.txt"
+        const val LEXICON_FILE = "lexicon-en-us.txt"
         const val MODEL_URL = "https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/kitten-nano-en-v0_1-fp16.tar.bz2"
+        const val LEXICON_URL = "https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/lexicon-en-us.txt"
         const val MAX_ARCHIVE_BYTES = 100L * 1024L * 1024L
         const val MIN_MODEL_BYTES = 5L * 1024L * 1024L
         val PERSIAN_OR_ARABIC = Regex("[\\u0600-\\u06FF]")
