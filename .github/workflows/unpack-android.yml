@@ -1,8 +1,6 @@
 name: Unpack Android project
 on:
   push:
-    paths:
-      - 'Kira-Android-2D.zip'
 permissions:
   contents: write
 jobs:
