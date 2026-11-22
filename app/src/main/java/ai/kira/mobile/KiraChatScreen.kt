@@ -39,6 +39,7 @@ internal fun KiraChatScreen(container: KiraContainer, character:String,prefillTe
     var input by remember { mutableStateOf("") }
     var busy by remember { mutableStateOf(false) }
     var historyLoading by remember { mutableStateOf(false) }
+    var speakingMessageId by remember { mutableStateOf<Long?>(null) }
     var loadSequence by remember { mutableIntStateOf(0) }
     var status by remember { mutableStateOf("هسته محلی آماده است. کلید API را در Route وارد کن.") }
     LaunchedEffect(prefillText) {
@@ -143,6 +144,33 @@ internal fun KiraChatScreen(container: KiraContainer, character:String,prefillTe
                         Column(Modifier.padding(13.dp),verticalArrangement=Arrangement.spacedBy(5.dp)) {
                             Text(if(user) "تو" else character.uppercase(),color=if(user) Color(0xFFE5DCFF) else KiraPalette.primary,fontSize=10.sp,fontWeight=FontWeight.Bold)
                             Text(message.content,color=Color(0xFFF0EFF6),fontSize=14.sp,lineHeight=21.sp)
+                            if (!user) {
+                                TextButton(
+                                    onClick = {
+                                        if (speakingMessageId != message.id) {
+                                            speakingMessageId = message.id
+                                            status = "در حال آماده‌سازی صدای ${character}…"
+                                            executor.execute {
+                                                try {
+                                                    container.speech.speak(message.content, character)
+                                                    handler.post {
+                                                        speakingMessageId = null
+                                                        status = "پخش صدا پایان یافت."
+                                                    }
+                                                } catch (error: Exception) {
+                                                    handler.post {
+                                                        speakingMessageId = null
+                                                        status = error.message ?: "تولید صدا ناموفق بود."
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    },
+                                    enabled = speakingMessageId == null
+                                ) {
+                                    Text(if (speakingMessageId == message.id) "در حال پخش…" else "▶ پخش صدا")
+                                }
+                            }
                             if(!user && message.route.isNotBlank()) Text(message.route,color=Color(0xFF8290A7),fontSize=9.sp)
                         }
                     }
