@@ -5,6 +5,7 @@ import android.os.Looper
 import ai.kira.mobile.application.KiraContainer
 import ai.kira.mobile.domain.model.ChatMessage
 import ai.kira.mobile.ui.theme.KiraPalette
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -17,6 +18,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -106,7 +110,15 @@ internal fun KiraChatScreen(container: KiraContainer, character:String,prefillTe
         }
     }
 
-    Column(Modifier.fillMaxSize().background(KiraPalette.background).padding(14.dp),verticalArrangement=Arrangement.spacedBy(10.dp)) {
+    Box(Modifier.fillMaxSize()) {
+        Image(
+            painter = painterResource(id = R.drawable.kira_character),
+            contentDescription = "تصویر کیرا در پس‌زمینهٔ گفتگو",
+            modifier = Modifier.fillMaxSize().alpha(0.22f),
+            contentScale = ContentScale.Crop
+        )
+        Box(Modifier.fillMaxSize().background(KiraPalette.background.copy(alpha = 0.82f)))
+        Column(Modifier.fillMaxSize().padding(14.dp),verticalArrangement=Arrangement.spacedBy(10.dp)) {
         Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.SpaceBetween) {
             Column {
                 Text("KIRA LOCAL CORE",color=KiraPalette.primary,fontSize=10.sp,fontWeight=FontWeight.Bold,letterSpacing=2.sp)
@@ -141,6 +153,7 @@ internal fun KiraChatScreen(container: KiraContainer, character:String,prefillTe
                 keyboardOptions=KeyboardOptions(imeAction=ImeAction.Send),keyboardActions=KeyboardActions(onSend={send()}),shape=RoundedCornerShape(18.dp),
                 colors=OutlinedTextFieldDefaults.colors(focusedTextColor=Color.White,unfocusedTextColor=Color.White,disabledTextColor=Color.White,cursorColor=Color.White,focusedPlaceholderColor=Color(0xFFD7D1E8),unfocusedPlaceholderColor=Color(0xFFD7D1E8)))
             Button(onClick={send()},enabled=!busy && !historyLoading && input.isNotBlank(),modifier=Modifier.height(54.dp),colors=ButtonDefaults.buttonColors(containerColor=KiraPalette.primaryContainer)) { Text("ارسال") }
+        }
         }
     }
 }
