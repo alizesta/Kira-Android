@@ -104,10 +104,9 @@ class HttpApiConnectorGateway(
         // address set to OkHttp. TLS SNI and certificate checks still use the
         // original URL hostname, while a second DNS lookup cannot rebind it.
         val pinnedAddresses = ConnectorAddressPolicy.resolvePublic(base.host, resolveHost)
-        val pinnedDns = Dns { hostname ->
-            if (hostname.equals(base.host, ignoreCase = true)) {
-                pinnedAddresses
-            } else {
+        val pinnedDns = object : Dns {
+            override fun lookup(hostname: String): List<InetAddress> {
+                if (hostname.equals(base.host, ignoreCase = true)) return pinnedAddresses
                 throw UnknownHostException("Connector attempted to resolve an unexpected host.")
             }
         }
