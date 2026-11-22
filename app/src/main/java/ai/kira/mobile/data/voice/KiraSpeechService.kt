@@ -87,7 +87,7 @@ class KiraSpeechService(context: Context) {
                 TarArchiveInputStream(bz).use { tar ->
                     while (true) {
                         val entry = tar.nextTarEntry ?: break
-                        val name = entry.name.replace('\\\\', '/')
+                        val name = entry.name.replace('\\', '/')
                         if (entry.isDirectory || !name.startsWith("$MODEL_DIRECTORY/")) continue
                         val relative = name.removePrefix("$MODEL_DIRECTORY/")
                         if (relative.isBlank() || relative.split('/').any { it == ".." }) {
@@ -98,7 +98,17 @@ class KiraSpeechService(context: Context) {
                             throw IOException("مسیر استخراج خارج از پوشه مدل است.")
                         }
                         target.parentFile?.mkdirs()
-                        FileOutputStream(target).use { output -> tar.copyTo(output) }
+                        FileOutputStream(target).use { output ->
+                            val buffer = ByteArray(32 * 1024)
+                            var remaining = entry.size
+                            while (remaining > 0) {
+                                val count = tar.read(buffer, 0, minOf(buffer.size.toLong(), remaining).toInt())
+                                if (count < 0) throw IOException("آرشیو مدل Kitten ناقص است.")
+                                if (count == 0) continue
+                                output.write(buffer, 0, count)
+                                remaining -= count
+                            }
+                        }
                     }
                 }
             }
