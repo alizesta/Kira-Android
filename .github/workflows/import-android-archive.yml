@@ -1,0 +1,57 @@
+name: Import Android project archive
+
+on:
+  push:
+    branches:
+      - feature/android-2d-import
+    paths:
+      - Kira-Android-2D.zip
+
+permissions:
+  contents: write
+
+jobs:
+  expand:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/android-2d-import
+      - name: Extract Android project at repository root
+        run: |
+          python - <<'PY'
+          from pathlib import Path, PurePosixPath
+          from zipfile import ZipFile
+
+          archive = Path("Kira-Android-2D.zip")
+          root = Path(".").resolve()
+          with ZipFile(archive) as z:
+              for item in z.infolist():
+                  if item.is_dir():
+                      continue
+                  parts = PurePosixPath(item.filename).parts
+                  if not parts or parts[0] != "Kira-Android" or len(parts) < 2:
+                      raise SystemExit(f"Unexpected archive path: {item.filename}")
+                  relative = PurePosixPath(*parts[1:])
+                  if ".." in relative.parts or relative.is_absolute():
+                      raise SystemExit(f"Unsafe archive path: {item.filename}")
+                  target = (root / Path(*relative.parts)).resolve()
+                  if root not in target.parents:
+                      raise SystemExit(f"Unsafe target path: {item.filename}")
+                  target.parent.mkdir(parents=True, exist_ok=True)
+                  with z.open(item) as src, target.open("wb") as dst:
+                      dst.write(src.read())
+
+          archive.unlink()
+          workflow = Path(".github/workflows/import-android-archive.yml")
+          workflow.unlink(missing_ok=True)
+          PY
+      - name: Commit imported project
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if ! git diff --cached --quiet; then
+            git commit -m "Import Android 2D project source"
+            git push origin HEAD:feature/android-2d-import
+          fi
