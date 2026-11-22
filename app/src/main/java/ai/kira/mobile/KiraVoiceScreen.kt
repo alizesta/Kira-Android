@@ -43,6 +43,11 @@ internal fun KiraVoiceScreen(container: KiraContainer, onUseInChat: (String) -> 
     val screenDisposed = remember { AtomicBoolean(false) }
     val voice = container.voice
     val shenavaAsr = container.shenavaAsr
+    val speech = container.speech
+    var kittenDownloaded by remember { mutableStateOf(speech.isKittenModelDownloaded()) }
+    var kittenBusy by remember { mutableStateOf(false) }
+    var kittenProgress by remember { mutableIntStateOf(0) }
+    var kittenStatus by remember { mutableStateOf(if (kittenDownloaded) "مدل Kitten آماده است؛ صدای انگلیسی آفلاین است." else "برای صدای انگلیسی، مدل Kitten را یک‌بار دانلود کن.") }
     val preferences = remember(context) {
         context.getSharedPreferences("kira_voice_settings", android.content.Context.MODE_PRIVATE)
     }
@@ -77,6 +82,35 @@ internal fun KiraVoiceScreen(container: KiraContainer, onUseInChat: (String) -> 
             runCatching { voice.stop() }
             runCatching { shenavaAsr.cancelRecording() }
             executor.shutdownNow()
+        }
+    }
+
+    fun downloadKitten() {
+        if (kittenBusy || busy || callActive || shenavaRecording || shenavaBusy) return
+        kittenBusy = true
+        kittenProgress = 0
+        kittenStatus = "در حال دانلود مدل Kitten TTS…"
+        executor.execute {
+            try {
+                speech.downloadKittenModel { progress ->
+                    handler.post {
+                        kittenProgress = progress.coerceIn(0, 100)
+                        kittenStatus = "دانلود Kitten TTS: $progress%"
+                    }
+                }
+                handler.post {
+                    kittenDownloaded = speech.isKittenModelDownloaded()
+                    kittenProgress = 100
+                    kittenStatus = "✓ مدل Kitten دانلود و اعتبارسنجی شد؛ برای متن انگلیسی آماده است."
+                    kittenBusy = false
+                }
+            } catch (error: Exception) {
+                handler.post {
+                    kittenDownloaded = speech.isKittenModelDownloaded()
+                    kittenStatus = error.message ?: "دانلود Kitten TTS ناموفق بود."
+                    kittenBusy = false
+                }
+            }
         }
     }
 
@@ -338,6 +372,27 @@ internal fun KiraVoiceScreen(container: KiraContainer, onUseInChat: (String) -> 
             "Gemini Live برای مکالمه دوطرفه و شنوا برای تشخیص فارسی کاملاً آفلاین در دسترس است. مسیر شنوا پس از دانلود مدل، صدا را فقط روی خود گوشی پردازش می‌کند.",
             color = KiraPalette.muted, fontSize = 12.sp, lineHeight = 18.sp
         )
+
+        Surface(color = KiraPalette.surface, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("تولید گفتار · Kitten TTS", color = KiraPalette.onBackground, fontWeight = FontWeight.SemiBold)
+                Text(
+                    "Kitten پاسخ‌های انگلیسی را آفلاین می‌خواند. برای پاسخ‌های فارسی از موتور گفتار نصب‌شده روی اندروید استفاده می‌شود؛ پشتیبانی فارسی به وجود صدای فارسی روی گوشی بستگی دارد.",
+                    color = KiraPalette.muted, fontSize = 11.sp, lineHeight = 17.sp
+                )
+                Text(kittenStatus, color = KiraPalette.muted, fontSize = 11.sp)
+                if (kittenBusy) LinearProgressIndicator(progress = { kittenProgress / 100f }, modifier = Modifier.fillMaxWidth())
+                if (!kittenDownloaded) {
+                    Button(
+                        onClick = { downloadKitten() },
+                        enabled = !kittenBusy && !busy && !callActive && !shenavaBusy && !shenavaRecording,
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text(if (kittenBusy) "در حال دانلود…" else "دانلود Kitten TTS · حدود ۲۷ مگابایت") }
+                } else {
+                    Text("مدل روی همین گوشی ذخیره شده و برای تولید صدای انگلیسی به اینترنت نیاز ندارد.", color = KiraPalette.primary, fontSize = 11.sp)
+                }
+            }
+        }
 
         Surface(color = KiraPalette.surface, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
