@@ -110,9 +110,15 @@ internal fun KiraChatScreen(container: KiraContainer, character:String,prefillTe
         }
     }
 
+    val characterBackground = when (character.trim().lowercase()) {
+        "ren" -> R.drawable.ren_character
+        "mika" -> R.drawable.mika_character
+        else -> R.drawable.kira_character
+    }
+
     Box(Modifier.fillMaxSize()) {
         Image(
-            painter = painterResource(id = R.drawable.kira_character),
+            painter = painterResource(id = characterBackground),
             contentDescription = "تصویر کیرا در پس‌زمینهٔ گفتگو",
             modifier = Modifier.fillMaxSize().alpha(0.22f),
             contentScale = ContentScale.Crop
