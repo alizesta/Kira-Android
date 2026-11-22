@@ -5,6 +5,7 @@ import android.os.Looper
 import ai.kira.mobile.application.KiraContainer
 import ai.kira.mobile.domain.model.ChatMessage
 import ai.kira.mobile.ui.theme.KiraPalette
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -17,6 +18,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -35,6 +39,7 @@ internal fun KiraChatScreen(container: KiraContainer, character:String,prefillTe
     var input by remember { mutableStateOf("") }
     var busy by remember { mutableStateOf(false) }
     var historyLoading by remember { mutableStateOf(false) }
+    var speakingMessageId by remember { mutableStateOf<Long?>(null) }
     var loadSequence by remember { mutableIntStateOf(0) }
     var status by remember { mutableStateOf("هسته محلی آماده است. کلید API را در Route وارد کن.") }
     LaunchedEffect(prefillText) {
@@ -106,7 +111,21 @@ internal fun KiraChatScreen(container: KiraContainer, character:String,prefillTe
         }
     }
 
-    Column(Modifier.fillMaxSize().background(KiraPalette.background).padding(14.dp),verticalArrangement=Arrangement.spacedBy(10.dp)) {
+    val characterBackground = when (character.trim().lowercase()) {
+        "ren" -> R.drawable.ren_character
+        "mika" -> R.drawable.mika_character
+        else -> R.drawable.kira_character
+    }
+
+    Box(Modifier.fillMaxSize()) {
+        Image(
+            painter = painterResource(id = characterBackground),
+            contentDescription = "تصویر کیرا در پس‌زمینهٔ گفتگو",
+            modifier = Modifier.fillMaxSize().alpha(0.22f),
+            contentScale = ContentScale.Crop
+        )
+        Box(Modifier.fillMaxSize().background(KiraPalette.background.copy(alpha = 0.82f)))
+        Column(Modifier.fillMaxSize().padding(14.dp),verticalArrangement=Arrangement.spacedBy(10.dp)) {
         Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.SpaceBetween) {
             Column {
                 Text("KIRA LOCAL CORE",color=KiraPalette.primary,fontSize=10.sp,fontWeight=FontWeight.Bold,letterSpacing=2.sp)
@@ -125,6 +144,33 @@ internal fun KiraChatScreen(container: KiraContainer, character:String,prefillTe
                         Column(Modifier.padding(13.dp),verticalArrangement=Arrangement.spacedBy(5.dp)) {
                             Text(if(user) "تو" else character.uppercase(),color=if(user) Color(0xFFE5DCFF) else KiraPalette.primary,fontSize=10.sp,fontWeight=FontWeight.Bold)
                             Text(message.content,color=Color(0xFFF0EFF6),fontSize=14.sp,lineHeight=21.sp)
+                            if (!user) {
+                                TextButton(
+                                    onClick = {
+                                        if (speakingMessageId != message.id) {
+                                            speakingMessageId = message.id
+                                            status = "در حال آماده‌سازی صدای ${character}…"
+                                            executor.execute {
+                                                try {
+                                                    container.speech.speak(message.content, character)
+                                                    handler.post {
+                                                        speakingMessageId = null
+                                                        status = "پخش صدا پایان یافت."
+                                                    }
+                                                } catch (error: Exception) {
+                                                    handler.post {
+                                                        speakingMessageId = null
+                                                        status = error.message ?: "تولید صدا ناموفق بود."
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    },
+                                    enabled = speakingMessageId == null
+                                ) {
+                                    Text(if (speakingMessageId == message.id) "در حال پخش…" else "▶ پخش صدا")
+                                }
+                            }
                             if(!user && message.route.isNotBlank()) Text(message.route,color=Color(0xFF8290A7),fontSize=9.sp)
                         }
                     }
@@ -141,6 +187,7 @@ internal fun KiraChatScreen(container: KiraContainer, character:String,prefillTe
                 keyboardOptions=KeyboardOptions(imeAction=ImeAction.Send),keyboardActions=KeyboardActions(onSend={send()}),shape=RoundedCornerShape(18.dp),
                 colors=OutlinedTextFieldDefaults.colors(focusedTextColor=Color.White,unfocusedTextColor=Color.White,disabledTextColor=Color.White,cursorColor=Color.White,focusedPlaceholderColor=Color(0xFFD7D1E8),unfocusedPlaceholderColor=Color(0xFFD7D1E8)))
             Button(onClick={send()},enabled=!busy && !historyLoading && input.isNotBlank(),modifier=Modifier.height(54.dp),colors=ButtonDefaults.buttonColors(containerColor=KiraPalette.primaryContainer)) { Text("ارسال") }
+        }
         }
     }
 }

@@ -11,6 +11,7 @@ import ai.kira.mobile.application.search.InternetSearchInteractor
 import ai.kira.mobile.application.voice.RealtimeVoiceInteractor
 import ai.kira.mobile.application.voice.ShenavaOfflineSpeechInteractor
 import ai.kira.mobile.data.voice.SherpaShenavaOfflineSpeechRepository
+import ai.kira.mobile.data.voice.KiraSpeechService
 import ai.kira.mobile.data.image.ImageGenerationSettingsStore
 import ai.kira.mobile.data.image.OpenAiCompatibleImageRepository
 import ai.kira.mobile.data.local.LocalAssistantRepository
@@ -60,6 +61,8 @@ class KiraContainer(context: Context) {
     val voice: RealtimeVoiceInteractor by lazy {
         RealtimeVoiceInteractor(voiceCredentials, voiceSessionFactory)
     }
+
+    val speech: KiraSpeechService by lazy { KiraSpeechService(app) }
 
     private val shenavaOfflineRepository: SherpaShenavaOfflineSpeechRepository by lazy {
         SherpaShenavaOfflineSpeechRepository(app)
